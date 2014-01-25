@@ -135,7 +135,7 @@ void dimAppV2::update() {
 				}
 			}
 
-			ptWarpTopLeft.set(ptTopLeft.x - margin, ptTopLeft.y - margin);
+			ptWarpTopLeft.set(max(0.0f, ptTopLeft.x - margin), ptTopLeft.y - margin);
 			ptWarpTopRight.set(ptTopRight.x - margin, ptTopRight.y - margin);
 			ptWarpBottomLeft.set(ptBottomLeft.x - margin, ptBottomLeft.y - margin);
 			ptWarpBottomRight.set(ptBottomRight.x - margin, ptBottomRight.y - margin);
@@ -202,6 +202,7 @@ void dimAppV2::update() {
 			//cout << ofGetWidth() << " : " << ofGetHeight() << endl;
 			//screenImage.resize(ofGetWidth(), ofGetHeight());
 			resultImage.setFromPixels(screenImage);
+			resultImage.printDebugInfo = false;
 			cout << "Update Stage[prepare] costs seconds: " << (ofGetElapsedTimeMillis() - start_t) / 1000.0 << endl;
 			break;
 		case dimAppV2::stageOutput:
@@ -213,20 +214,19 @@ void dimAppV2::update() {
 			screenImage.update();
 			//screenImage.resize(ofGetWidth(), ofGetHeight());		//0.4s
 
-			//cout << "update stageOutput" << endl;
-
 			warpCapturedImage = capturedImage;
 			warpCapturedImage.warpPerspective(ptWarpTopLeft, ptWarpTopRight, ptWarpBottomRight, ptWarpBottomLeft);
 			resizedWarpCapturedImage.setFromPixels(warpCapturedImage.getPixelsRef());
-
+			
 			resizedWarpCapturedImage.resize(max(max(ptTopLeft.x, ptBottomLeft.x), max(ptTopRight.x, ptBottomRight.x)) - min(min(ptTopLeft.x, ptBottomLeft.x), min(ptTopRight.x, ptBottomRight.x)), 
 				max(max(ptTopLeft.y, ptBottomLeft.y), max(ptTopRight.y, ptBottomRight.y)) - min(min(ptTopLeft.y, ptBottomLeft.y), min(ptTopRight.y, ptBottomRight.y)));
 			
 			resultImage.setFromPixels(screenImage);
-			resultImage.setThreshold(gui.getThreshold());
+			resultImage.setThreshold(gui.getThresholdRGB(), gui.getThresholdHSB());
 			
 			resultImage.absDiff(screenImage, resizedWarpCapturedImage);
-			cout << "Update stage[Output] costs seconds: " << (ofGetElapsedTimeMillis() - start_t) / 1000.0 << endl;
+			//cout << "update stageOutput" << endl;
+			//cout << "Update stage[Output] costs seconds: " << (ofGetElapsedTimeMillis() - start_t) / 1000.0 << endl;
 			//resultImage.resize(ofGetWidth(), ofGetHeight());
 #ifdef USE_GRAY_DIFF
 			grayImage.setROI(cropcapturedImage.getROI());
@@ -380,9 +380,11 @@ void dimAppV2::draw() {
 		//cout << "draw stageOutput" << endl;
 		screenImage.draw(0, 0);
 		resultImage.drawContour(0, 0);
-
-		//resultImage.drawBlob(screenImage);
 		//resultImage.draw(0, 0);	// draw difference image
+		gui.drawString("RGB Threshold " + std::to_string(gui.getThresholdRGB()), ofGetWindowWidth() - 200, ofGetWindowHeight() - 60);
+		gui.drawString("HSB Threshold " + std::to_string(gui.getThresholdHSB()), ofGetWindowWidth() - 200, ofGetWindowHeight() - 30);
+		//resultImage.drawBlob(screenImage);
+		//cout << "end draw stageOutput" << endl;
 		break;
 	default:
 		break;
@@ -391,12 +393,16 @@ void dimAppV2::draw() {
 
 //--------------------------------------------------------------
 void dimAppV2::keyPressed(int key) {
-	if (key == 'n'){
+	if (key == 'n' || key == 'N'){
 		if (stage == stageOutput)
 			stage = stageInput;
 		else 
 			stage = (dimAppStage)(stage + 1);
 	}
+	else if (key == '9')
+		resultImage.isErode = !resultImage.isErode;
+	else if (key == '0')
+		resultImage.isErode = !resultImage.isErode;
 	gui.keyPressed(key);
 }
 

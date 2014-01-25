@@ -5,9 +5,8 @@
 
 float version = 2.0;
 float versionStrPosX = 0;
-
-int minThreshold = 1;
-int maxThreshold = 700;
+int minThresholdRGB = 1, maxThresholdRGB = 765;
+int minThresholdHSB = 1, maxThresholdHSB = 360;
 
 myGui::myGui(void) {
 	grabberOpened = false;
@@ -18,8 +17,8 @@ myGui::~myGui(void) {
 }
 
 void myGui::setup() {
-	myFont.loadFont("SourceCodePro-Regular.ttf", 12, true, true, false);
-	mySmallFont.loadFont("SourceCodePro-Regular.ttf", 9, true, true, false);
+	myFont.loadFont("SourceCodePro-Regular.ttf", 14, true, true, false);
+	mySmallFont.loadFont("SourceCodePro-Regular.ttf", 10, true, true, false);
 	ofSetHexColor(0xffffff);
 	ofSetVerticalSync(true);
 
@@ -28,11 +27,10 @@ void myGui::setup() {
 	gui.setup("Panel", "settings.xml", ofGetWindowWidth()/2 + 360);
 
 	//gui.add(threshold.set("Threshold Gray Value", 24, 0, 255));
-	gui.add(threshold.set("Threshold", 450, minThreshold, maxThreshold));
-
+	gui.add(thresholdRGB.set("RGB Threshold", 450, minThresholdRGB, maxThresholdRGB));
+	gui.add(thresholdHSB.set("HSB Threshold", 80, minThresholdHSB, maxThresholdHSB));
 
 	gui.add(erode.set("Erode", 0, 0, 2));
-
 	gui.add(dilate.set("Dilate", 1, 0, 2));
 
 #ifdef V1
@@ -48,11 +46,7 @@ void myGui::setup() {
 	gui.add(bFlipHorizontally.set("Flip Horizontally", false));
 	gui.add(bFilpVertically.set("Flip Vertically", false));
 
-	//gui.add(center.set("center", ofVec2f(ofGetWidth()*.5,ofGetHeight()*.5),ofVec2f(0,0),ofVec2f(ofGetWidth(),ofGetHeight())));
 	gui.add(color.set("color",ofColor(255, 255, 255),ofColor(0,0),ofColor(255,255)));
-	//gui.add(circleResolution.set("circleRes", 5, 3, 90));
-	//gui.add(twoCircles.setup("twoCircles"));
-	//gui.add(ringButton.setup("ring"));
 	gui.add(screenSize.set("screenSize", ""));
 	
 	ofParameterGroup transformFactors;
@@ -66,7 +60,6 @@ void myGui::setup() {
 }
 
 void myGui::draw() {
-	//splashLogo.draw(0, 0);
 	if (versionStrPosX >= ofGetWindowWidth())
 		versionStrPosX = 0;
 	drawString("Autodimming screen - Version "+ ofToString(version, 2), ++versionStrPosX, ofGetWindowHeight() - 5); //font is loadedp
@@ -80,7 +73,9 @@ void myGui::draw() {
 }
 
 void myGui::drawString(std::string s, float x, float y) {
+	ofSetColor(255, 0, 0);
 	myFont.drawString(s, x, y);
+	ofSetColor(255, 255, 255);
 }
 
 void myGui::drawSmallString(std::string s, float x, float y) {
@@ -90,20 +85,19 @@ void myGui::drawSmallString(std::string s, float x, float y) {
 void myGui::keyPressed(int key){
 	if (key == 'h'){
 		bHide = !bHide;
-	}
-	else if (key == 's') {
+	} else if (key == 's') {
 		gui.saveToFile("settings.xml");
-	}
-	else if (key == 'l') {
+	} else if (key == 'l') {
 		gui.loadFromFile("settings.xml");
-	}
-	else if (key == ' ') {
+	} else if (key == ' ') {
 		color = ofColor(255);
-	}
-	else if (key == '=') {
-		threshold = threshold + 5;
-	}
-	else if (key == '-') {
-		threshold = threshold - 5;
-	}
+	} else if (key == '=' || key == '+') {
+		thresholdRGB += 10;
+	} else if (key == '-' || key == '_') {
+		thresholdRGB -= 10;
+	} else if (key == ']' || key == '}') {
+		thresholdHSB += 5;
+	}  else if (key == '[' || key == '{') {
+		thresholdHSB -= 5;
+	} 
 }

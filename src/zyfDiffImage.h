@@ -6,24 +6,21 @@
 
 class zyfDiffImage {
 private:
-	unsigned threshold;	// 0 ~ 765(255*3)
+	unsigned thresholdRGB, thresholdHSB;
 
 	ofImage dimColorImage;
 	ofColor dimColor;
 	ofxCvColorImage diffImage;
 	ofxCvGrayscaleImage diffGrayImage;
 	ofxCvContourFinder contourFinder;
-
-	vector<ofPoint> vecDiffPoints;
-	bool checkDiffPoint(int x, int y);
-
-	unsigned colorDiff(ofColor a, ofColor b);
-
-	bool* diffPoints;
 	ofxCvHaarFinder haarFinder;
+
+	unsigned colorDiffRGB(ofColor a, ofColor b);
+	unsigned colorDiffHSB(ofColor a, ofColor b);
 
 public:
 	bool printDebugInfo;
+	bool isErode, isDilate;
 	int debug_x, debug_y;
 	zyfDiffImage();
 
@@ -36,7 +33,7 @@ public:
 
 	void absDiff(ofImage& baseImage, ofImage& barrierImage);
 
-	void setThreshold(int value);
+	void setThreshold(int rgb, int hsb);
 	void setDimcolor(ofColor& color);
 
 	void setDimColorImage(ofImage image) {dimColorImage = image;}

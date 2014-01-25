@@ -19,7 +19,8 @@ public:
 		grabberOpened = opened;
 	};
 
-	int getThreshold() {return threshold;}
+	int getThresholdRGB() {return thresholdRGB;}
+	int getThresholdHSB() {return thresholdHSB;}
 	int getErode() {return erode;}
 	int getDilate() {return dilate;}
 	int getLpf1() {return lpf1;}
@@ -44,7 +45,8 @@ private:
 
 	bool bHide;
 	
-	ofParameter<int> threshold;
+	ofParameter<int> thresholdRGB;
+	ofParameter<int> thresholdHSB;
 	ofParameter<int> erode;
 	ofParameter<int> dilate;
 	ofParameter<int> lpf1;

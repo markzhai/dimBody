@@ -10,11 +10,6 @@ zyfDiffImage::zyfDiffImage() {
 void zyfDiffImage::allocate(int w, int h) {
 	diffImage.allocate(w, h);
 	diffGrayImage.allocate(w, h);
-
-	diffPoints = (bool*)calloc(w * h, sizeof(int));	//realloc()
-	memset(diffPoints, 0x0, sizeof(bool) * w * h);
-	//cout << diffPoints[w*h - 1];
-	//free((void**)diffPoints);
 }
 
 void zyfDiffImage::setFromPixels(const ofPixels &pixels) {
@@ -39,7 +34,11 @@ void zyfDiffImage::draw(float x, float y) {
 
 void zyfDiffImage::drawContour(float x, float y) {
 	diffGrayImage = diffImage;
-	contourFinder.findContours(diffGrayImage, 7000, 400000, 20, true);
+	if (isErode)
+		diffGrayImage.erode();
+	if (isDilate)
+		diffGrayImage.dilate();
+	contourFinder.findContours(diffGrayImage, 10000, 600000, 5, true);
 	ofPushStyle();
 	ofSetHexColor(0x00FFFF);
 	ofSetColor(ofColor::black);
@@ -63,15 +62,21 @@ void zyfDiffImage::absDiff(ofImage& baseImage, ofImage& barrierImage) {
 	ofPixelsRef barrierPixels = barrierImage.getPixelsRef();
 	ofPixelsRef basePixels = baseImage.getPixelsRef();
 	
-	unsigned absDiff;
+	unsigned absDiff, absDiffHSB;
 	int mapX, mapY, tillX, tillY;
-	dimColorImage.saveImage("dim.jpg");
+	//dimColorImage.saveImage("dim.jpg");
 	ofColor blackColor(0, 0, 0);
+	
 	if (printDebugInfo) {
-		int mapX = processing::map(debug_x, 0, ofGetWidth(), 0, barrierImage.getWidth());
-		int	mapY = processing::map(debug_y, 0, ofGetHeight(), 0, barrierImage.getHeight());
-		cout << "Dim Color    : " << dimColorImage.getColor(mapX, mapY) << endl;
-		cout << "Barrier Color: " << barrierImage.getColor(mapX, mapY) << endl;
+		mapX = processing::map(debug_x, 0, ofGetWidth(), 0, barrierImage.getWidth());
+		mapY = processing::map(debug_y, 0, ofGetHeight(), 0, barrierImage.getHeight());
+		printf("X: %d (%d), Y: %d (%d)\n", debug_x, mapX, debug_y, mapY);
+		cout << "Dim    : " << dimColorImage.getColor(mapX, mapY) << endl;
+		cout << "Barrier: " << barrierImage.getColor(mapX, mapY) << endl;
+		cout << "Base   : " << baseImage.getColor(debug_x, debug_y) << endl;
+
+		printf("Barrier(HSB): %.2f\t%.2f\t%.2f\n", barrierImage.getColor(mapX, mapY).getHue(), barrierImage.getColor(mapX, mapY).getSaturation(), barrierImage.getColor(mapX, mapY).getBrightness());
+		printf("Base   (HSB): %.2f\t%.2f\t%.2f\n", baseImage.getColor(debug_x, debug_y).getHue(), baseImage.getColor(debug_x, debug_y).getSaturation(), baseImage.getColor(debug_x, debug_y).getBrightness());
 		printDebugInfo = false;
 	}
 
@@ -83,18 +88,18 @@ void zyfDiffImage::absDiff(ofImage& baseImage, ofImage& barrierImage) {
 			tillX = processing::map(i + 1, 0, barrierImage.getWidth(), 0, baseImage.getWidth());
 			tillY = processing::map(j + 1, 0, barrierImage.getHeight(), 0, baseImage.getHeight());
 			
-			if (colorDiff(barrierPixels.getColor(i, j), dimColorImage.getColor(i, j)) < 50) {
+			if (colorDiffRGB(barrierPixels.getColor(i, j), dimColorImage.getColor(i, j)) < 60) {
 				//cout << "detect " << barrierPixels.getColor(i, j) << " - " << dimColorImage.getColor(i, j) << endl;
 				continue;	// Ignore dimming color pixels
 			}
-
+			
 			for (int m = mapX; m < tillX; ++m) {
 				for (int n = mapY; n < tillY; ++n) {
 					// it supposed to be black according to base image
-					if (colorDiff(ofColor::black, basePixels.getColor(m, n)) < 50)
-						continue;
-					absDiff = colorDiff(barrierPixels.getColor(i, j), basePixels.getColor(m, n));
-					if (absDiff > threshold) {
+					//if (colorDiff(ofColor::black, basePixels.getColor(m, n)) < 20) continue;
+					absDiff = colorDiffRGB(barrierPixels.getColor(i, j), basePixels.getColor(m, n));
+					absDiffHSB = colorDiffHSB(barrierPixels.getColor(i, j), basePixels.getColor(m, n));
+					if (absDiff > thresholdRGB || absDiffHSB > thresholdHSB) {
 						pixels.setColor(m, n, blackColor);
 					}
 				}
@@ -102,30 +107,22 @@ void zyfDiffImage::absDiff(ofImage& baseImage, ofImage& barrierImage) {
 		}
 	}
 	diffImage.flagImageChanged();
-	//vecDiffPoints.clear();
-	
 	//cout << (ofGetElapsedTimeMillis() - start_t) / 1000.0;
 }
 
-bool zyfDiffImage::checkDiffPoint(int x, int y) {
-	for (vector<ofPoint>::const_iterator iter = vecDiffPoints.begin(); iter != vecDiffPoints.end(); ++ iter) {
-		if (iter->y > y)
-			return false;
-		if (iter->y == y && iter->x > x)
-			return false;
-		if (iter->y == y && iter->x == x)
-			return true;
-	}
-	return false;
-}
-
-void zyfDiffImage::setThreshold(int value) {
-	if (value > 755)
-		threshold = 755;
-	else if (value < 0)
-		threshold = 0;
+void zyfDiffImage::setThreshold(int rgb, int hsb) {
+	if (rgb > 755)
+		thresholdRGB = 755;
+	else if (rgb < 0)
+		thresholdRGB = 0;
 	else
-		threshold = value;
+		thresholdRGB = rgb;
+	if (hsb > 360)
+		thresholdHSB = 360;
+	else if (hsb < 0)
+		thresholdHSB = 0;
+	else
+		thresholdHSB = hsb;
 }
 
 void zyfDiffImage::setDimcolor(ofColor& color) {
@@ -133,27 +130,37 @@ void zyfDiffImage::setDimcolor(ofColor& color) {
 	float red = color.r;
 	float green = color.g;
 	cout << "Dim color - R: " << red << "  G: " << green << "  B: " << blue << endl;
-
-	unsigned diff = colorDiff(color, dimColor);
 	dimColor.set(color);
 }
 
-unsigned zyfDiffImage::colorDiff(ofColor a, ofColor b) {
+unsigned zyfDiffImage::colorDiffRGB(ofColor a, ofColor b) {
+	unsigned result = abs(a.r - b.r) + abs(a.g - b.g) + abs(a.b - b.b);
+	return result;
+}
+
+unsigned zyfDiffImage::colorDiffHSB(ofColor a, ofColor b) {
 	unsigned result = 0;
-	result += abs(a.r - b.r) + abs(a.g - b.g) + abs(a.b - b.b);
+	float hue1, sat1, brightness1;
+	a.getHsb(hue1, sat1, brightness1);
+	float hue2, sat2, brightness2;
+	b.getHsb(hue2, sat2, brightness2);
+
+	if (sat1 >= 50 && sat2 >= 50)
+		result = abs(hue1 - hue2);
+
 	return result;
 }
 
 ofxCvColorImage cvImage;
 void zyfDiffImage::drawBlob(ofImage image) {
 	//cout << image.width << " " << image.height << endl;
-	if (! cvImage.bAllocated) {
+	if (!cvImage.bAllocated) {
 		cvImage.allocate(image.width, image.height);
 	}
 	cvImage.setFromPixels(image.getPixelsRef());
 	
 	diffGrayImage = diffImage;
-	contourFinder.findContours(diffGrayImage, 7000, 400000, 20, true);
+	contourFinder.findContours(diffGrayImage, 7000, 400000, 5, true);
 	for (int i = 0; i < contourFinder.blobs.size(); i++) {
 		cvImage.drawBlobIntoMe(contourFinder.blobs[i], 0);
 	}
